@@ -40,6 +40,7 @@ Pygments==2.19.2
 PyYAML==6.0.3
 regex==2026.2.28
 rich==14.3.3
+ruff==0.15.5
 safetensors==0.7.0
 scikit-learn==1.8.0
 scipy==1.17.1
