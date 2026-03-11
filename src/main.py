@@ -1,6 +1,6 @@
-def test_function():
-    return "Hello, World"
+from src.db import db_init
 
 
 if __name__ == "__main__":
-    print(test_function())
+    print("Inilializing Database")
+    db_init()
