@@ -13,10 +13,7 @@ VECTOR_SIZE = int(os.getenv("QDRANT_VECTOR_SIZE"))
 
 
 def init_qdrant():
-    client = QdrantClient(
-        host=QDRANT_HOST,
-        port=QDRANT_PORT
-    )
+    client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
 
     collections = client.get_collections().collections
     collection_names = [c.name for c in collections]
@@ -28,10 +25,7 @@ def init_qdrant():
 
         client.create_collection(
             collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(
-                size=VECTOR_SIZE,
-                distance=Distance.COSINE
-            )
+            vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
         )
 
         print("Collection created!")
