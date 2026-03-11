@@ -17,7 +17,7 @@ O projeto utiliza as seguintes tecnologias e bibliotecas:
 
 ### 1️⃣ Verifique o ambiente Python
 
-Execute o comando abaixo para garantir que está utilizando a versão correta do Python (3.11+):
+Execute o comando abaixo para garantir que está utilizando a versão correta do Python (3.12+):
 
 ```bash
 python --version
@@ -26,7 +26,7 @@ python --version
 ### 2️⃣ Crie e ative o ambiente virtual
 
 ```bash
-python -m venv .venv
+python -m venv .venv       # Ou python3 no linux
 source .venv/bin/activate  # Linux/macOS
 .venv\Scripts\activate     # Windows
 ```
@@ -66,7 +66,9 @@ cp .env.example .env
 ### 6️⃣ Execute a aplicação
 
 ```bash
-python main.py
+python -m src.main
+# ou
+python src/main.py
 ```
 
 ## 🧪 Rodando os testes
