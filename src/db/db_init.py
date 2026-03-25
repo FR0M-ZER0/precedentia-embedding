@@ -35,6 +35,8 @@ def init_qdrant():
     else:
         print("Collection already exists")
 
+    return client
+
 
 def init_redis():
     try:
