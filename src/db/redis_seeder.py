@@ -18,8 +18,9 @@ def seed_redis(redis_client):
             "last_update": random_past_date(),
             "situation": "Ativo",
             "url": "https://stf.jus.br/tema123",
-            "description": ("Discussão sobre constitucionalidade de "
-                            "tributos estaduais.")
+            "description": (
+                "Discussão sobre constitucionalidade de tributos estaduais."
+            ),
         },
         {
             "id": 2,
@@ -28,7 +29,7 @@ def seed_redis(redis_client):
             "last_update": random_past_date(),
             "situation": "Ativo",
             "url": "https://stj.jus.br/tema456",
-            "description": "Responsabilidade civil em contratos bancários."
+            "description": "Responsabilidade civil em contratos bancários.",
         },
         {
             "id": 3,
@@ -37,7 +38,7 @@ def seed_redis(redis_client):
             "last_update": random_past_date(),
             "situation": "Suspenso",
             "url": "https://stf.jus.br/tema789",
-            "description": "Validade de normas ambientais estaduais."
+            "description": "Validade de normas ambientais estaduais.",
         },
         {
             "id": 4,
@@ -46,7 +47,7 @@ def seed_redis(redis_client):
             "last_update": random_past_date(),
             "situation": "Finalizado",
             "url": "https://stj.jus.br/tema321",
-            "description": "Execução fiscal e prescrição intercorrente."
+            "description": "Execução fiscal e prescrição intercorrente.",
         },
         {
             "id": 5,
@@ -55,20 +56,23 @@ def seed_redis(redis_client):
             "last_update": random_past_date(),
             "situation": "Ativo",
             "url": "https://stf.jus.br/tema654",
-            "description": "Direitos fundamentais e liberdade de expressão."
-        }
+            "description": "Direitos fundamentais e liberdade de expressão.",
+        },
     ]
 
     for p in precedents:
         key = f"precedent:{p['id']}"
 
-        redis_client.hset(key, mapping={
-            "name": p["name"],
-            "tribunal": p["tribunal"],
-            "last_update": p["last_update"],
-            "situation": p["situation"],
-            "url": p["url"],
-            "description": p["description"],
-        })
+        redis_client.hset(
+            key,
+            mapping={
+                "name": p["name"],
+                "tribunal": p["tribunal"],
+                "last_update": p["last_update"],
+                "situation": p["situation"],
+                "url": p["url"],
+                "description": p["description"],
+            },
+        )
 
     print("Redis seeded successfully!")
