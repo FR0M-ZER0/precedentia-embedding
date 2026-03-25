@@ -1,4 +1,5 @@
 import os
+import redis
 from dotenv import load_dotenv
 
 from qdrant_client import QdrantClient
@@ -10,6 +11,8 @@ QDRANT_HOST = os.getenv("QDRANT_HOST")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT"))
 COLLECTION_NAME = os.getenv("QDRANT_COLLECTION")
 VECTOR_SIZE = int(os.getenv("QDRANT_VECTOR_SIZE"))
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = int(os.getenv("REDIS_PORT"))
 
 
 def init_qdrant():
@@ -31,3 +34,13 @@ def init_qdrant():
         print("Collection created!")
     else:
         print("Collection already exists")
+
+
+def init_redis():
+    try:
+        r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+        r.ping()
+        return r
+    except redis.ConnectionError as e:
+        print(f"Redis connection failed: {e}")
+        return None
