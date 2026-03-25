@@ -42,10 +42,13 @@ def init_qdrant():
         print(f"Qdrant connection failed: {e}")
         return None
 
+
 def init_redis():
     try:
         r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
         r.ping()
+
+        print("Sucessfully connected to Redis")
         return r
     except redis.ConnectionError as e:
         print(f"Redis connection failed: {e}")
