@@ -16,27 +16,31 @@ REDIS_PORT = int(os.getenv("REDIS_PORT"))
 
 
 def init_qdrant():
-    client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+    try:
+        client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
 
-    collections = client.get_collections().collections
-    collection_names = [c.name for c in collections]
+        collections = client.get_collections().collections
+        collection_names = [c.name for c in collections]
 
-    # Checks if the collection already exists in the database. In case it does
-    # not exist, the collection is created
-    if COLLECTION_NAME not in collection_names:
-        print(f"Creating collection: {COLLECTION_NAME}")
+        # Checks if the collection already exists in the database. In case it
+        # does not exist, the collection is created
+        if COLLECTION_NAME not in collection_names:
+            print(f"Creating collection: {COLLECTION_NAME}")
 
-        client.create_collection(
-            collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
-        )
+            client.create_collection(
+                collection_name=COLLECTION_NAME,
+                vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+            )
 
-        print("Collection created!")
-    else:
-        print("Collection already exists")
+            print("Collection created!")
+        else:
+            print("Collection already exists")
 
-    return client
-
+        print("Successfully connected to Qdrant")
+        return client
+    except Exception as e:
+        print(f"Qdrant connection failed: {e}")
+        return None
 
 def init_redis():
     try:
