@@ -1,9 +1,7 @@
 from datetime import datetime, timedelta
 import random
 
-TRIBUNALS = [
-    "STF", "STJ", "TST", "TSE", "STM", "TRF1", "TRF2", "TRF3", "TRF4", "TRF5"
-]
+TRIBUNALS = ["STF", "STJ", "TST", "TSE", "STM", "TRF1", "TRF2", "TRF3", "TRF4", "TRF5"]
 
 TRIBUNAL_URLS = {
     "STF": "https://stf.jus.br/tema{}",
