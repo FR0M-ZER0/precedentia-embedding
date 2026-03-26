@@ -19,9 +19,7 @@ def vectorize(model, key, value):
     return point_id, vector, payload
 
 
-def vectorize_entries(
-        redis_client, qdrant_client, qdrant_collection_name, model
-):
+def vectorize_entries(redis_client, qdrant_client, qdrant_collection_name, model):
     cursor = 0
     points = []
 
