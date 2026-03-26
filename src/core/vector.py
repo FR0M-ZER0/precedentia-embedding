@@ -16,6 +16,7 @@ def vectorize(model, key, value):
 
     point_id = int(key.split(":")[1])
 
+    print(f"Entry precedent:{point_id} converted to vector")
     return point_id, vector, payload
 
 
@@ -46,3 +47,5 @@ def vectorize_entries(redis_client, qdrant_client, qdrant_collection_name, model
         collection_name=qdrant_collection_name,
         points=points,
     )
+
+    print("Successfully saved all data into Qdrant")
