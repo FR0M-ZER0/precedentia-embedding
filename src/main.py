@@ -3,6 +3,7 @@ from src.db.db_init import init_qdrant, init_redis
 from src.db.redis_seeder import seed_redis
 from src.core.vector import vectorize_entries
 from dotenv import load_dotenv
+from sentence_transformers import SentenceTransformer
 
 load_dotenv()
 
@@ -17,4 +18,5 @@ if __name__ == "__main__":
     if redis_client:
         seed_redis(redis_client)
 
-    vectorize_entries(redis_client, qdrant_client, COLLECTION_NAME)
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+    vectorize_entries(redis_client, qdrant_client, COLLECTION_NAME, model)

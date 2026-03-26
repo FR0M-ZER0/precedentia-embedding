@@ -1,10 +1,27 @@
-from sentence_transformers import SentenceTransformer
 from qdrant_client.models import PointStruct
 
 
-def vectorize_entries(redis_client, qdrant_client, qdrant_collection_name):
-    model = SentenceTransformer("all-MiniLM-L6-v2")
+def vectorize(model, key, value):
+    text = f"{value.get('name')}. {value.get('description')}"
 
+    vector = model.encode(text).tolist()
+
+    payload = {
+        "name": value.get("name"),
+        "description": value.get("description"),
+        "tribunal": value.get("tribunal"),
+        "situation": value.get("situation"),
+        "url": value.get("url"),
+    }
+
+    point_id = int(key.split(":")[1])
+
+    return point_id, vector, payload
+
+
+def vectorize_entries(
+        redis_client, qdrant_client, qdrant_collection_name, model
+):
     cursor = 0
     points = []
 
@@ -14,18 +31,7 @@ def vectorize_entries(redis_client, qdrant_client, qdrant_collection_name):
         for key in keys:
             value = redis_client.hgetall(key)
 
-            text = f"{value.get('name')}. {value.get('description')}"
-            vector = model.encode(text).tolist()
-
-            payload = {
-                "name": value.get("name"),
-                "description": value.get("description"),
-                "tribunal": value.get("tribunal"),
-                "situation": value.get("situation"),
-                "url": value.get("url"),
-            }
-
-            point_id = int(key.split(":")[1])
+            point_id, vector, payload = vectorize(model, key, value)
 
             points.append(
                 PointStruct(
