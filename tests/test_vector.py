@@ -19,7 +19,9 @@ def sample_value():
 @pytest.fixture
 def mock_model():
     model = MagicMock()
-    model.encode.return_value = MagicMock(tolist=MagicMock(return_value=[0.1, 0.2, 0.3]))
+    model.encode.return_value = MagicMock(
+        tolist=MagicMock(return_value=[0.1, 0.2, 0.3])
+    )
     return model
 
 
@@ -60,7 +62,13 @@ class TestVectorize:
 
     def test_payload_has_no_extra_fields(self, mock_model, sample_value):
         _, _, payload = vectorize(mock_model, "precedent:42", sample_value)
-        assert set(payload.keys()) == {"name", "description", "tribunal", "situation", "url"}
+        assert set(payload.keys()) == {
+            "name",
+            "description",
+            "tribunal",
+            "situation",
+            "url",
+        }
 
     def test_point_id_parsed_from_key(self, mock_model, sample_value):
         point_id, _, _ = vectorize(mock_model, "precedent:999", sample_value)
@@ -85,7 +93,9 @@ class TestVectorize:
 
 
 class TestVectorizeEntries:
-    def test_upsert_called_once(self, mock_redis, mock_qdrant, mock_model, sample_value):
+    def test_upsert_called_once(
+        self, mock_redis, mock_qdrant, mock_model, sample_value
+    ):
         mock_redis.scan.return_value = (0, ["precedent:1"])
         mock_redis.hgetall.return_value = sample_value
 
@@ -93,7 +103,9 @@ class TestVectorizeEntries:
 
         mock_qdrant.upsert.assert_called_once()
 
-    def test_upsert_collection_name(self, mock_redis, mock_qdrant, mock_model, sample_value):
+    def test_upsert_collection_name(
+        self, mock_redis, mock_qdrant, mock_model, sample_value
+    ):
         mock_redis.scan.return_value = (0, ["precedent:1"])
         mock_redis.hgetall.return_value = sample_value
 
@@ -126,7 +138,9 @@ class TestVectorizeEntries:
         for point in kwargs["points"]:
             assert isinstance(point, PointStruct)
 
-    def test_point_ids_match_keys(self, mock_redis, mock_qdrant, mock_model, sample_value):
+    def test_point_ids_match_keys(
+        self, mock_redis, mock_qdrant, mock_model, sample_value
+    ):
         mock_redis.scan.return_value = (0, ["precedent:7", "precedent:42"])
         mock_redis.hgetall.return_value = sample_value
 
