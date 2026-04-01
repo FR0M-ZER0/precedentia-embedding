@@ -156,6 +156,8 @@ class PrecedentMatcher:
         if all_results:
             all_results = self.rerank_results(query_text, all_results)
             all_results = all_results[:self.final_k]
+
+        all_results.sort(key=lambda x: (x['score'], x.get('rerank_score', 0)), reverse=True)
         
         return {
             'query': {
