@@ -4,7 +4,7 @@ import os
 
 from src.db.db_init import init_qdrant, init_redis
 
-# from src.db.redis_seeder import seed_redis
+from src.db.redis_seeder import seed_redis
 from src.core.vector import vectorize_entries
 from src.api.match import match_bp, init_matcher
 from sentence_transformers import SentenceTransformer
@@ -24,9 +24,9 @@ def create_app():
     qdrant_client = init_qdrant()
     redis_client = init_redis()
 
-    # if redis_client:
-    #     print("Seeding Redis...")
-    #     seed_redis(redis_client)
+    if redis_client:
+        print("Seeding Redis...")
+        seed_redis(redis_client, count=12)
 
     print("Loading model and vectorizing data...")
     model = SentenceTransformer(model_name)
