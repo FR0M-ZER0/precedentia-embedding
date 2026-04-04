@@ -7,27 +7,27 @@ from sentence_transformers import CrossEncoder, SentenceTransformer
 
 SPECIES_WEIGHTS: Dict[str, float] = {
     # Vinculantes — uso obrigatório
-    "Súmula Vinculante":                                         1.50,
-    "Repercussão Geral":                                         1.40,
-    "Ação Direta de Inconstitucionalidade (ADI)":                1.35,
-    "Ação Declaratória de Constitucionalidade (ADC)":            1.35,
+    "Súmula Vinculante": 1.50,
+    "Repercussão Geral": 1.40,
+    "Ação Direta de Inconstitucionalidade (ADI)": 1.35,
+    "Ação Declaratória de Constitucionalidade (ADC)": 1.35,
     "Arguição de Descumprimento de Preceito Fundamental (ADPF)": 1.30,
     # Forte persuasão — repetitivos e IAC
-    "Recurso Especial Repetitivo":                               1.20,
-    "Incidente de Recurso de Revista Repetitivo":                1.20,
-    "Incidente de Resolução de Demandas Repetitivas (IRDR)":     1.20,
-    "Incidente de Assunção de Competência (IAC)":                1.15,
+    "Recurso Especial Repetitivo": 1.20,
+    "Incidente de Recurso de Revista Repetitivo": 1.20,
+    "Incidente de Resolução de Demandas Repetitivas (IRDR)": 1.20,
+    "Incidente de Assunção de Competência (IAC)": 1.15,
     # Persuasivos
-    "Súmula":                                                    1.10,
-    "Orientação Jurisprudencial":                                1.05,
-    "Súmula Regional":                                           1.05,
+    "Súmula": 1.10,
+    "Orientação Jurisprudencial": 1.05,
+    "Súmula Regional": 1.05,
     # Base — sem peso extra
-    "Resolução":                                                 1.00,
-    "Consulta":                                                  1.00,
-    "Acórdão em Recurso":                                        1.00,
-    "Acórdão em Recurso Ordinário":                              1.00,
-    "Acórdão em Recurso Ordinário Militar":                      1.00,
-    "Enunciado":                                                 1.00,
+    "Resolução": 1.00,
+    "Consulta": 1.00,
+    "Acórdão em Recurso": 1.00,
+    "Acórdão em Recurso Ordinário": 1.00,
+    "Acórdão em Recurso Ordinário Militar": 1.00,
+    "Enunciado": 1.00,
 }
 
 
@@ -113,12 +113,13 @@ class PrecedentMatcher:
                 )
                 results = getattr(query_response, "points", query_response)
             else:
-                print("Erro na busca vetorial: cliente Qdrant sem método de busca compatível")
+                print(
+                    "Erro na busca vetorial: cliente Qdrant sem método de busca compatível"
+                )
                 return []
 
             return [
-                {"id": r.id, "score": r.score, "payload": r.payload}
-                for r in results
+                {"id": r.id, "score": r.score, "payload": r.payload} for r in results
             ]
         except Exception as e:
             print(f"Erro na busca vetorial: {e}")
@@ -129,7 +130,10 @@ class PrecedentMatcher:
             return results
 
         pairs = [
-            [query_text, f"{r['payload'].get('name', '')}. {r['payload'].get('description', '')}"]
+            [
+                query_text,
+                f"{r['payload'].get('name', '')}. {r['payload'].get('description', '')}",
+            ]
             for r in results
         ]
         scores = self.reranker.predict(pairs)
@@ -163,10 +167,15 @@ class PrecedentMatcher:
             query_vector = self.encoder.encode(chunk).tolist()
             for result in self.vector_search(query_vector):
                 rid = result["id"]
-                if rid not in unique_results or result["score"] > unique_results[rid]["score"]:
+                if (
+                    rid not in unique_results
+                    or result["score"] > unique_results[rid]["score"]
+                ):
                     unique_results[rid] = result
 
-        all_results = sorted(unique_results.values(), key=lambda x: x["score"], reverse=True)
+        all_results = sorted(
+            unique_results.values(), key=lambda x: x["score"], reverse=True
+        )
         all_results = all_results[: self.top_k]
 
         if all_results:
