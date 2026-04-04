@@ -10,8 +10,10 @@ def vectorize(model, key, value):
         "name": value.get("name"),
         "description": value.get("description"),
         "tribunal": value.get("tribunal"),
+        "species": value.get("species"),
         "situation": value.get("situation"),
         "url": value.get("url"),
+        "summary": value.get("summary"),
     }
 
     point_id = int(key.split(":")[1])

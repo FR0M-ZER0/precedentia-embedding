@@ -26,7 +26,7 @@ def create_app():
 
     if redis_client:
         print("Seeding Redis...")
-        seed_redis(redis_client, count=12)
+        seed_redis(redis_client, count=42)
 
     print("Loading model and vectorizing data...")
     model = SentenceTransformer(model_name)
