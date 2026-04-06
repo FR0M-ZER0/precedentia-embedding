@@ -1,27 +1,22 @@
 import math
 import os
-from datetime import datetime
 from typing import Any, Dict, List
 
 from sentence_transformers import CrossEncoder, SentenceTransformer
 
 SPECIES_WEIGHTS: Dict[str, float] = {
-    # Vinculantes — uso obrigatório
     "Súmula Vinculante": 1.50,
     "Repercussão Geral": 1.40,
     "Ação Direta de Inconstitucionalidade (ADI)": 1.35,
     "Ação Declaratória de Constitucionalidade (ADC)": 1.35,
     "Arguição de Descumprimento de Preceito Fundamental (ADPF)": 1.30,
-    # Forte persuasão — repetitivos e IAC
     "Recurso Especial Repetitivo": 1.20,
     "Incidente de Recurso de Revista Repetitivo": 1.20,
     "Incidente de Resolução de Demandas Repetitivas (IRDR)": 1.20,
     "Incidente de Assunção de Competência (IAC)": 1.15,
-    # Persuasivos
     "Súmula": 1.10,
     "Orientação Jurisprudencial": 1.05,
     "Súmula Regional": 1.05,
-    # Base — sem peso extra
     "Resolução": 1.00,
     "Consulta": 1.00,
     "Acórdão em Recurso": 1.00,
@@ -29,21 +24,6 @@ SPECIES_WEIGHTS: Dict[str, float] = {
     "Acórdão em Recurso Ordinário Militar": 1.00,
     "Enunciado": 1.00,
 }
-
-
-def recency_factor(last_update_str: str, half_life_days: int = 730) -> float:
-    """
-    Fator de recência com decaimento logarítmico suave.
-    - Atualizado hoje   → 1.0
-    - Atualizado há ~2 anos → ~0.5
-    """
-    try:
-        last_update = datetime.strptime(last_update_str, "%Y-%m-%d %H:%M:%S")
-    except (ValueError, TypeError):
-        return 1.0
-
-    days_old = max((datetime.now() - last_update).days, 0)
-    return 1.0 / (1.0 + math.log1p(days_old / half_life_days))
 
 
 class PrecedentMatcher:
@@ -64,10 +44,6 @@ class PrecedentMatcher:
         self.score_threshold = float(os.getenv("SCORE_THRESHOLD", 0.1))
 
     def chunk_text(self, text: str) -> List[str]:
-        """
-        Divide o texto em chunks menores para preservar densidade semântica.
-        Chunk size reduzido para ~150 chars — sweet spot para MiniLM.
-        """
         if not text or not text.strip():
             return []
 
@@ -127,10 +103,6 @@ class PrecedentMatcher:
             return []
 
     def _search_field(self, text: str, unique_results: Dict[int, Dict]) -> None:
-        """
-        Busca vetorial para um campo isolado (facts ou requests), atualizando
-        unique_results in-place mantendo sempre o maior score por id.
-        """
         for chunk in self.chunk_text(text):
             query_vector = self.encoder.encode(chunk).tolist()
             for result in self.vector_search(query_vector):
@@ -159,17 +131,13 @@ class PrecedentMatcher:
 
         return results
 
-    def compute_final_score(self, result: Dict) -> float:
+    def compute_score(self, result: Dict) -> float:
         rerank = result.get("rerank_score", result["score"])
+        return 1 / (1 + math.exp(-rerank))
+
+    def compute_species_score(self, result: Dict) -> float:
         species = result["payload"].get("species", "")
-        updated = result["payload"].get("last_update", "")
-
-        rerank_normalized = 1 / (1 + math.exp(-rerank))
-
-        w_species = SPECIES_WEIGHTS.get(species, 1.0)
-        w_recency = recency_factor(updated)
-
-        return rerank_normalized * w_species * w_recency
+        return SPECIES_WEIGHTS.get(species, 1.0)
 
     def match_precedent(
         self, petition_type: str, tribunal: str, facts: str, requests: str
@@ -179,10 +147,6 @@ class PrecedentMatcher:
 
         if facts and facts.strip():
             self._search_field(facts, unique_results)
-
-        # TODO: descomentar quando requests também entrar na busca
-        # if requests and requests.strip():
-        #     self._search_field(requests, unique_results)
 
         all_results = sorted(
             unique_results.values(), key=lambda x: x["score"], reverse=True
@@ -194,12 +158,16 @@ class PrecedentMatcher:
             all_results = self.rerank_results(rerank_query, all_results)
 
         for r in all_results:
-            r["final_score"] = self.compute_final_score(r)
+            r["score"] = self.compute_score(r)
+            r["score_species"] = self.compute_species_score(r)
 
-        all_results.sort(key=lambda x: x["final_score"], reverse=True)
+        all_results.sort(
+            key=lambda x: (x["score"], x["score_species"]),
+            reverse=True
+        )
 
         all_results = [
-            r for r in all_results if r["final_score"] >= self.score_threshold
+            r for r in all_results if r["score"] >= self.score_threshold
         ]
 
         all_results = all_results[: self.final_k]
@@ -222,7 +190,8 @@ class PrecedentMatcher:
                     "summary": r["payload"].get("summary"),
                     "url": r["payload"].get("url"),
                     "last_update": r["payload"].get("last_update"),
-                    "score": round(r["final_score"], 4),
+                    "score": round(r["score"], 4),
+                    "score_species": r["score_species"],
                 }
                 for r in all_results
             ],
