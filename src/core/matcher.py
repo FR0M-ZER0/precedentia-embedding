@@ -60,17 +60,17 @@ class PrecedentMatcher:
 
         self.top_k = int(os.getenv("TOP_K", 10))
         self.final_k = int(os.getenv("FINAL_K", 5))
-        self.chunk_size = int(os.getenv("CHUNK_SIZE", 500))
-
-    def prepare_query_text(self, facts: str, requests: str) -> str:
-        parts = []
-        if facts and facts.strip():
-            parts.append(f"Fatos: {facts}")
-        if requests and requests.strip():
-            parts.append(f"Pedidos: {requests}")
-        return " ".join(parts)
+        self.chunk_size = int(os.getenv("CHUNK_SIZE", 150))
+        self.score_threshold = float(os.getenv("SCORE_THRESHOLD", 0.1))
 
     def chunk_text(self, text: str) -> List[str]:
+        """
+        Divide o texto em chunks menores para preservar densidade semântica.
+        Chunk size reduzido para ~150 chars — sweet spot para MiniLM.
+        """
+        if not text or not text.strip():
+            return []
+
         if len(text) <= self.chunk_size:
             return [text]
 
@@ -82,7 +82,8 @@ class PrecedentMatcher:
                 current_chunk.append(word)
                 current_length += len(word) + 1
             else:
-                chunks.append(" ".join(current_chunk))
+                if current_chunk:
+                    chunks.append(" ".join(current_chunk))
                 current_chunk = [word]
                 current_length = len(word) + 1
 
@@ -125,6 +126,21 @@ class PrecedentMatcher:
             print(f"Erro na busca vetorial: {e}")
             return []
 
+    def _search_field(self, text: str, unique_results: Dict[int, Dict]) -> None:
+        """
+        Busca vetorial para um campo isolado (facts ou requests), atualizando
+        unique_results in-place mantendo sempre o maior score por id.
+        """
+        for chunk in self.chunk_text(text):
+            query_vector = self.encoder.encode(chunk).tolist()
+            for result in self.vector_search(query_vector):
+                rid = result["id"]
+                if (
+                    rid not in unique_results
+                    or result["score"] > unique_results[rid]["score"]
+                ):
+                    unique_results[rid] = result
+
     def rerank_results(self, query_text: str, results: List[Dict]) -> List[Dict]:
         if not results:
             return results
@@ -159,32 +175,33 @@ class PrecedentMatcher:
         self, petition_type: str, tribunal: str, facts: str, requests: str
     ) -> Dict[str, Any]:
 
-        query_text = self.prepare_query_text(facts, requests)
-        chunks = self.chunk_text(query_text)
-
         unique_results: Dict[int, Dict] = {}
-        for chunk in chunks:
-            query_vector = self.encoder.encode(chunk).tolist()
-            for result in self.vector_search(query_vector):
-                rid = result["id"]
-                if (
-                    rid not in unique_results
-                    or result["score"] > unique_results[rid]["score"]
-                ):
-                    unique_results[rid] = result
+
+        if facts and facts.strip():
+            self._search_field(facts, unique_results)
+
+        # TODO: descomentar quando requests também entrar na busca
+        # if requests and requests.strip():
+        #     self._search_field(requests, unique_results)
 
         all_results = sorted(
             unique_results.values(), key=lambda x: x["score"], reverse=True
         )
         all_results = all_results[: self.top_k]
 
-        if all_results:
-            all_results = self.rerank_results(query_text, all_results)
+        rerank_query = facts[:500] if facts else ""
+        if all_results and rerank_query:
+            all_results = self.rerank_results(rerank_query, all_results)
 
         for r in all_results:
             r["final_score"] = self.compute_final_score(r)
 
         all_results.sort(key=lambda x: x["final_score"], reverse=True)
+
+        all_results = [
+            r for r in all_results if r["final_score"] >= self.score_threshold
+        ]
+
         all_results = all_results[: self.final_k]
 
         return {
