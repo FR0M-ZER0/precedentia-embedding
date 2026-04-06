@@ -543,7 +543,7 @@ SITUATION_WEIGHTS = [0.6, 0.2, 0.2]
 def random_past_date() -> str:
     days_ago = random.randint(1, 730)
     random_date = datetime.now() - timedelta(days=days_ago)
-    return random_date.strftime("%Y-%m-%d %H:%M:%S")
+    return random_date.strftime("%d/%m/%Y")
 
 
 def get_especie(tribunal: str) -> str:
