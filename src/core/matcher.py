@@ -161,14 +161,9 @@ class PrecedentMatcher:
             r["score"] = self.compute_score(r)
             r["score_species"] = self.compute_species_score(r)
 
-        all_results.sort(
-            key=lambda x: (x["score"], x["score_species"]),
-            reverse=True
-        )
+        all_results.sort(key=lambda x: (x["score"], x["score_species"]), reverse=True)
 
-        all_results = [
-            r for r in all_results if r["score"] >= self.score_threshold
-        ]
+        all_results = [r for r in all_results if r["score"] >= self.score_threshold]
 
         all_results = all_results[: self.final_k]
 
