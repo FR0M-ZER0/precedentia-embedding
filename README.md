@@ -65,6 +65,20 @@ cp .env.example .env
 
 ### 6️⃣ Execute a aplicação
 
+Suba os bancos de dados:
+
+```bash
+docker compose up -d
+```
+
+Caso queira derrubar os containers, basta rodar:
+
+```bash
+docker compose down
+```
+
+Execute a aplicação
+
 ```bash
 python -m src.main
 # ou
