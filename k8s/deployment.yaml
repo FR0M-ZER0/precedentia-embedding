@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: precedentia-embedding
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: embedding
+  template:
+    metadata:
+      labels:
+        app: embedding
+    spec:
+      containers:
+      - name: embedding
+        image: docker.io/gabguimaraes/precedentia-embedding:latest
+        ports:
+        - containerPort: 5001
+        resources:
+          limits:
+            memory: "6Gi"

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: embedding-service
+spec:
+  type: ClusterIP
+  selector:
+    app: embedding
+  ports:
+    - protocol: TCP
+      port: 5001
+      targetPort: 5001
