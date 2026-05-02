@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: embedding
-        image: docker.io/gabguimaraes/precedentia-embedding:latest
+        image: docker.io/gabguimaraes/precedentia-embedding:43cca8d
         ports:
         - containerPort: 5001
         resources:
