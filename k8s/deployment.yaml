@@ -19,11 +19,11 @@ spec:
         - containerPort: 5001
         env:
         - name: QDRANT_HOST
-          value: "seu-host-do-qdrant"
+          value: "qdrant-db"
         - name: QDRANT_PORT
           value: "6333"
         - name: REDIS_HOST
-          value: "seu-host-do-redis"
+          value: "redis-db-master"
         - name: REDIS_PORT
           value: "6379"
         resources:
