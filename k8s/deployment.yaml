@@ -26,6 +26,8 @@ spec:
           value: "redis-db-master"
         - name: REDIS_PORT
           value: "6379"
+        - name: QDRANT_VECTOR_SIZE
+          value: "1536" 
         resources:
           requests:
             memory: "1Gi"
