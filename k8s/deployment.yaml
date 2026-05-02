@@ -14,9 +14,13 @@ spec:
     spec:
       containers:
       - name: embedding
-        image: gabguimaraes/precedentia-embedding:latest
+        image: docker.io/gabguimaraes/precedentia-embedding:latest
         ports:
         - containerPort: 5001
         resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
           limits:
-            memory: "6Gi"
+            memory: "4Gi"
+            cpu: "2000m"
