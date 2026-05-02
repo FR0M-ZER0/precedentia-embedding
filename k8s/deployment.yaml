@@ -24,3 +24,4 @@ spec:
           limits:
             memory: "4Gi"
             cpu: "2000m"
+
