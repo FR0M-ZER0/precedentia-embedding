@@ -1,9 +1,12 @@
-FROM --platform=linux/arm64 public.ecr.aws/docker/library/python:3.12-slim
+FROM public.ecr.aws/docker/library/python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ARG TARGETPLATFORM
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
+
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
