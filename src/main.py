@@ -18,9 +18,7 @@ def create_app():
     app.config["JSON_AS_ASCII"] = False
 
     qdrant_collection = os.getenv("QDRANT_COLLECTION", "precedents")
-    model_name = os.getenv(
-        "MODEL_NAME", "intfloat/multilingual-e5-large-instruct"
-    )
+    model_name = os.getenv("MODEL_NAME", "intfloat/multilingual-e5-large-instruct")
 
     print("Initializing databases...")
     qdrant_client = init_qdrant()

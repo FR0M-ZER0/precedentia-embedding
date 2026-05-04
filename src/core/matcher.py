@@ -197,7 +197,6 @@ class PrecedentMatcher:
             r["score"] = self.compute_score(r)
 
         all_results = [r for r in all_results if r["score"] >= self.score_threshold]
-        all_results.sort(key=lambda x: x["score"], reverse=True)
 
         if all_results and facts:
             precedents_payload = [
@@ -222,6 +221,20 @@ class PrecedentMatcher:
                 r["applicability_justification"] = enriched_r.get(
                     "applicability_justification"
                 )
+
+        applicability_priority = {
+            "applicable": 3,
+            "possible_applicability": 2,
+            "low_applicability": 1,
+        }
+
+        all_results.sort(
+            key=lambda x: (
+                applicability_priority.get(x.get("applicability"), 0),
+                x["score"],
+            ),
+            reverse=True,
+        )
 
         all_results = all_results[: self.final_k]
 
