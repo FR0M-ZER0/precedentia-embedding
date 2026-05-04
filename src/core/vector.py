@@ -9,6 +9,7 @@ def vectorize(model, key, value):
     payload = {
         "name": value.get("name"),
         "description": value.get("description"),
+        "question": value.get("question"),
         "tribunal": value.get("tribunal"),
         "species": value.get("species"),
         "situation": value.get("situation"),

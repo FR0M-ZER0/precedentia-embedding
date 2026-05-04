@@ -1,8 +1,12 @@
 import math
 import os
+import logging
+import requests
 from typing import Any, Dict, List
 
 from sentence_transformers import CrossEncoder, SentenceTransformer
+
+logger = logging.getLogger(__name__)
 
 SPECIES_WEIGHTS: Dict[str, float] = {
     "Súmula Vinculante": 1.50,
@@ -38,21 +42,21 @@ class PrecedentMatcher:
         self.encoder = SentenceTransformer(model_name)
         self.reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
 
-        self.top_k = int(os.getenv("TOP_K", 10))
-        self.final_k = int(os.getenv("FINAL_K", 5))
+        self.top_k = int(os.getenv("TOP_K", 50))
+        self.final_k = int(os.getenv("FINAL_K", 20))
         self.chunk_size = int(os.getenv("CHUNK_SIZE", 150))
         self.score_threshold = float(os.getenv("SCORE_THRESHOLD", 0.1))
+
+        self.applicability_url = os.getenv("APPLICABILITY_SERVICE_URL")
+        self.applicability_timeout = int(os.getenv("APPLICABILITY_TIMEOUT", 30))
 
     def chunk_text(self, text: str) -> List[str]:
         if not text or not text.strip():
             return []
-
         if len(text) <= self.chunk_size:
             return [text]
-
         words = text.split()
         chunks, current_chunk, current_length = [], [], 0
-
         for word in words:
             if current_length + len(word) + 1 <= self.chunk_size:
                 current_chunk.append(word)
@@ -62,17 +66,14 @@ class PrecedentMatcher:
                     chunks.append(" ".join(current_chunk))
                 current_chunk = [word]
                 current_length = len(word) + 1
-
         if current_chunk:
             chunks.append(" ".join(current_chunk))
-
         return chunks
 
     def vector_search(self, query_vector: List[float]) -> List[Dict]:
         if not self.qdrant_client:
-            print("Erro na busca vetorial: cliente Qdrant não inicializado")
+            logger.error("Erro na busca vetorial: cliente Qdrant não inicializado")
             return []
-
         try:
             if hasattr(self.qdrant_client, "search"):
                 results = self.qdrant_client.search(
@@ -90,16 +91,13 @@ class PrecedentMatcher:
                 )
                 results = getattr(query_response, "points", query_response)
             else:
-                print(
-                    "Erro na busca vetorial: cliente Qdrant sem método de busca compatível"
-                )
+                logger.error("Erro na busca vetorial: método Qdrant incompatível")
                 return []
-
             return [
                 {"id": r.id, "score": r.score, "payload": r.payload} for r in results
             ]
         except Exception as e:
-            print(f"Erro na busca vetorial: {e}")
+            logger.error(f"Erro na busca vetorial: {e}")
             return []
 
     def _search_field(self, text: str, unique_results: Dict[int, Dict]) -> None:
@@ -116,7 +114,6 @@ class PrecedentMatcher:
     def rerank_results(self, query_text: str, results: List[Dict]) -> List[Dict]:
         if not results:
             return results
-
         pairs = [
             [
                 query_text,
@@ -125,10 +122,8 @@ class PrecedentMatcher:
             for r in results
         ]
         scores = self.reranker.predict(pairs)
-
         for result, score in zip(results, scores):
             result["rerank_score"] = float(score)
-
         return results
 
     def compute_score(self, result: Dict) -> float:
@@ -139,12 +134,41 @@ class PrecedentMatcher:
         species = result["payload"].get("species", "")
         return SPECIES_WEIGHTS.get(species, 1.0)
 
+    def _call_applicability_service(
+        self, facts: str, petition_type: str, precedents: List[Dict]
+    ) -> List[Dict]:
+        if not self.applicability_url:
+            logger.warning(
+                "APPLICABILITY_SERVICE_URL não configurado — etapa ignorada."
+            )
+            return precedents
+        try:
+            response = requests.post(
+                f"{self.applicability_url}/api/check-applicability",
+                json={
+                    "facts": facts,
+                    "petition_type": petition_type,
+                    "precedents": precedents,
+                },
+                timeout=self.applicability_timeout,
+            )
+            response.raise_for_status()
+            return response.json()["precedents"]
+        except requests.Timeout:
+            logger.error(
+                "Timeout ao verificar aplicabilidade — continuando sem filtro."
+            )
+        except requests.HTTPError as e:
+            logger.error(f"Erro HTTP ao verificar aplicabilidade: {e}")
+        except Exception as e:
+            logger.error(f"Erro inesperado ao verificar aplicabilidade: {e}")
+        return precedents
+
     def match_precedent(
         self, petition_type: str, tribunal: str, facts: str, requests: str
     ) -> Dict[str, Any]:
 
         unique_results: Dict[int, Dict] = {}
-
         if facts and facts.strip():
             self._search_field(facts, unique_results)
 
@@ -159,11 +183,33 @@ class PrecedentMatcher:
 
         for r in all_results:
             r["score"] = self.compute_score(r)
-            r["score_species"] = self.compute_species_score(r)
-
-        all_results.sort(key=lambda x: (x["score"], x["score_species"]), reverse=True)
 
         all_results = [r for r in all_results if r["score"] >= self.score_threshold]
+        all_results.sort(key=lambda x: x["score"], reverse=True)
+
+        if all_results and facts:
+            precedents_payload = [
+                {
+                    "name": r["payload"].get("name"),
+                    "species": r["payload"].get("species"),
+                    "description": r["payload"].get("description"),
+                    "summary": r["payload"].get("summary"),
+                }
+                for r in all_results
+            ]
+
+            enriched = self._call_applicability_service(
+                facts, petition_type, precedents_payload
+            )
+
+            for r, enriched_r in zip(all_results, enriched):
+                r["applicability"] = enriched_r.get(
+                    "applicability", "possible_applicability"
+                )
+                r["applicability_score"] = enriched_r.get("applicability_score", 0.5)
+                r["applicability_justification"] = enriched_r.get(
+                    "applicability_justification"
+                )
 
         all_results = all_results[: self.final_k]
 
@@ -182,11 +228,14 @@ class PrecedentMatcher:
                     "species": r["payload"].get("species"),
                     "situation": r["payload"].get("situation"),
                     "description": r["payload"].get("description"),
-                    "summary": r["payload"].get("summary"),
+                    "question": r["payload"].get("question"),
+                    "summary": r.get("applicability_justification"),
                     "url": r["payload"].get("url"),
                     "last_update": r["payload"].get("last_update"),
                     "score": round(r["score"], 4),
-                    "score_species": r["score_species"],
+                    "score_species": r.get("score_species"),
+                    "applicability": r.get("applicability"),
+                    "applicability_justification": r.get("applicability_justification"),
                 }
                 for r in all_results
             ],
