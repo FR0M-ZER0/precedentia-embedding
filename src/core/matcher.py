@@ -2,7 +2,7 @@ import math
 import os
 import logging
 import requests
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Union
 
 from sentence_transformers import CrossEncoder, SentenceTransformer
 
@@ -34,6 +34,10 @@ _QUERY_INSTRUCTION = (
     "para os seguintes fatos processuais\nQuery: "
 )
 
+_RERANK_FACTS_WEIGHT = 0.60
+_RERANK_REQUESTS_WEIGHT = 0.30
+_RERANK_TYPE_WEIGHT = 0.10
+
 
 class PrecedentMatcher:
     def __init__(
@@ -48,10 +52,14 @@ class PrecedentMatcher:
         self.encoder = SentenceTransformer(model_name)
         self.reranker = CrossEncoder(reranker_name)
 
+        self.chunk_size = int(os.getenv("CHUNK_SIZE", 512))
         self.top_k = int(os.getenv("TOP_K", 50))
         self.final_k = int(os.getenv("FINAL_K", 20))
-        self.chunk_size = int(os.getenv("CHUNK_SIZE", 150))
         self.score_threshold = float(os.getenv("SCORE_THRESHOLD", 0.1))
+
+
+        self.rerank_facts_limit = int(os.getenv("RERANK_FACTS_LIMIT", 800))
+        self.rerank_requests_limit = int(os.getenv("RERANK_REQUESTS_LIMIT", 400))
 
         self.applicability_url = os.getenv("APPLICABILITY_SERVICE_URL")
         self.applicability_timeout = int(os.getenv("APPLICABILITY_TIMEOUT", 30))
@@ -62,24 +70,30 @@ class PrecedentMatcher:
         if len(text) <= self.chunk_size:
             return [text]
         words = text.split()
-        chunks, current_chunk, current_length = [], [], 0
+        chunks: List[str] = []
+        current_chunk: List[str] = []
+        current_length = 0
+
         for word in words:
-            if current_length + len(word) + 1 <= self.chunk_size:
+            word_len = len(word) + 1
+            if current_length + word_len <= self.chunk_size:
                 current_chunk.append(word)
-                current_length += len(word) + 1
+                current_length += word_len
             else:
                 if current_chunk:
                     chunks.append(" ".join(current_chunk))
                 current_chunk = [word]
-                current_length = len(word) + 1
+                current_length = word_len
         if current_chunk:
             chunks.append(" ".join(current_chunk))
         return chunks
 
     def _encode_query(self, text: str) -> List[float]:
+        """Codifica um texto de query com a instrução de recuperação."""
         return self.encoder.encode(_QUERY_INSTRUCTION + text).tolist()
 
     def _encode_document(self, text: str) -> List[float]:
+        """Codifica um texto de documento (sem instrução)."""
         return self.encoder.encode(text).tolist()
 
     def vector_search(self, query_vector: List[float]) -> List[Dict]:
@@ -105,8 +119,10 @@ class PrecedentMatcher:
             else:
                 logger.error("Erro na busca vetorial: método Qdrant incompatível")
                 return []
+
             return [
-                {"id": r.id, "score": r.score, "payload": r.payload} for r in results
+                {"id": r.id, "score": r.score, "payload": r.payload}
+                for r in results
             ]
         except Exception as e:
             logger.error(f"Erro na busca vetorial: {e}")
@@ -123,22 +139,73 @@ class PrecedentMatcher:
                 ):
                     unique_results[rid] = result
 
-    def rerank_results(self, query_text: str, results: List[Dict]) -> List[Dict]:
+
+    def _build_rerank_query(
+        self,
+        petition_type: str,
+        facts: str,
+        requests: Union[str, List[str]],
+    ) -> str:
+        """
+        Constrói uma query sintética e densa para o reranker, combinando
+        tipo de petição, fatos e pedidos com limites maiores do que a
+        versão anterior (que usava apenas os primeiros 500 chars dos fatos).
+
+        A query resultante aproveita melhor o contexto jurídico relevante
+        e melhora a capacidade do reranker de distinguir precedentes
+        aplicáveis dos irrelevantes.
+        """
+        requests_text = (
+            requests
+            if isinstance(requests, str)
+            else " ".join(requests)
+        )
+
+        facts_excerpt = facts[: self.rerank_facts_limit].strip()
+        requests_excerpt = requests_text[: self.rerank_requests_limit].strip()
+
+        parts = []
+        if petition_type:
+            parts.append(f"Tipo de ação: {petition_type}.")
+        if facts_excerpt:
+            parts.append(f"Fatos: {facts_excerpt}")
+        if requests_excerpt:
+            parts.append(f"Pedidos: {requests_excerpt}")
+
+        return " ".join(parts)
+
+    def rerank_results(
+        self,
+        rerank_query: str,
+        results: List[Dict],
+    ) -> List[Dict]:
+        """
+        Aplica o CrossEncoder sobre os pares (query, documento) e adiciona
+        o campo `rerank_score` a cada resultado.
+        """
         if not results:
             return results
+
         pairs = [
             [
-                query_text,
+                rerank_query,
                 f"{r['payload'].get('name', '')}. {r['payload'].get('description', '')}",
             ]
             for r in results
         ]
         scores = self.reranker.predict(pairs)
+
         for result, score in zip(results, scores):
             result["rerank_score"] = float(score)
+
         return results
 
     def compute_score(self, result: Dict) -> float:
+        """
+        Converte o rerank_score (ou o score vetorial bruto como fallback)
+        para o intervalo [0, 1] via sigmoid, tornando os valores
+        comparáveis independentemente da escala do reranker.
+        """
         rerank = result.get("rerank_score", result["score"])
         return 1 / (1 + math.exp(-rerank))
 
@@ -147,7 +214,10 @@ class PrecedentMatcher:
         return SPECIES_WEIGHTS.get(species, 1.0)
 
     def _call_applicability_service(
-        self, facts: str, petition_type: str, precedents: List[Dict]
+        self,
+        facts: str,
+        petition_type: str,
+        precedents: List[Dict],
     ) -> List[Dict]:
         if not self.applicability_url:
             logger.warning(
@@ -177,21 +247,42 @@ class PrecedentMatcher:
         return precedents
 
     def match_precedent(
-        self, petition_type: str, tribunal: str, facts: str, requests: str
+        self,
+        petition_type: str,
+        tribunal: Optional[str],
+        facts: str,
+        requests: Union[str, List[str]],
     ) -> Dict[str, Any]:
 
         unique_results: Dict[int, Dict] = {}
+
         if facts and facts.strip():
             self._search_field(facts, unique_results)
 
+        requests_text = (
+            requests
+            if isinstance(requests, str)
+            else " ".join(requests) if requests else ""
+        )
+        if requests_text and requests_text.strip():
+            self._search_field(requests_text, unique_results)
+
         all_results = sorted(
-            unique_results.values(), key=lambda x: x["score"], reverse=True
+            unique_results.values(),
+            key=lambda x: x["score"],
+            reverse=True,
         )
         all_results = all_results[: self.top_k]
 
-        rerank_query = facts[:500] if facts else ""
-        if all_results and rerank_query:
-            all_results = self.rerank_results(rerank_query, all_results)
+        for r in all_results:
+            r["vector_score"] = r["score"]
+
+        if all_results:
+            rerank_query = self._build_rerank_query(
+                petition_type, facts, requests or ""
+            )
+            if rerank_query.strip():
+                all_results = self.rerank_results(rerank_query, all_results)
 
         for r in all_results:
             r["score"] = self.compute_score(r)
@@ -238,12 +329,19 @@ class PrecedentMatcher:
 
         all_results = all_results[: self.final_k]
 
+        facts_preview = facts[:200] + "..." if len(facts) > 200 else facts
+        requests_preview = (
+            requests_text[:200] + "..."
+            if len(requests_text) > 200
+            else requests_text
+        )
+
         return {
             "query": {
                 "type": petition_type,
                 "tribunal": tribunal,
-                "facts": facts[:200] + "..." if len(facts) > 200 else facts,
-                "requests": requests[:200] + "..." if len(requests) > 200 else requests,
+                "facts": facts_preview,
+                "requests": requests_preview,
             },
             "results": [
                 {
@@ -257,7 +355,8 @@ class PrecedentMatcher:
                     "summary": r.get("applicability_justification"),
                     "url": r["payload"].get("url"),
                     "last_update": r["payload"].get("last_update"),
-                    "score": round(r["score"], 4),
+                    "score": round(r.get("vector_score", 0), 4),
+                    "vector_score": round(r.get("vector_score", 0), 4),
                     "score_species": r.get("score_species"),
                     "applicability": r.get("applicability"),
                     "applicability_justification": r.get("applicability_justification"),
