@@ -317,7 +317,7 @@ class PrecedentMatcher:
         all_results.sort(
             key=lambda x: (
                 applicability_priority.get(x.get("applicability"), 0),
-                x["score"],
+                x.get("vector_score", 0),
             ),
             reverse=True,
         )
