@@ -57,7 +57,6 @@ class PrecedentMatcher:
         self.final_k = int(os.getenv("FINAL_K", 20))
         self.score_threshold = float(os.getenv("SCORE_THRESHOLD", 0.1))
 
-
         self.rerank_facts_limit = int(os.getenv("RERANK_FACTS_LIMIT", 800))
         self.rerank_requests_limit = int(os.getenv("RERANK_REQUESTS_LIMIT", 400))
 
@@ -121,8 +120,7 @@ class PrecedentMatcher:
                 return []
 
             return [
-                {"id": r.id, "score": r.score, "payload": r.payload}
-                for r in results
+                {"id": r.id, "score": r.score, "payload": r.payload} for r in results
             ]
         except Exception as e:
             logger.error(f"Erro na busca vetorial: {e}")
@@ -139,7 +137,6 @@ class PrecedentMatcher:
                 ):
                     unique_results[rid] = result
 
-
     def _build_rerank_query(
         self,
         petition_type: str,
@@ -155,11 +152,7 @@ class PrecedentMatcher:
         e melhora a capacidade do reranker de distinguir precedentes
         aplicáveis dos irrelevantes.
         """
-        requests_text = (
-            requests
-            if isinstance(requests, str)
-            else " ".join(requests)
-        )
+        requests_text = requests if isinstance(requests, str) else " ".join(requests)
 
         facts_excerpt = facts[: self.rerank_facts_limit].strip()
         requests_excerpt = requests_text[: self.rerank_requests_limit].strip()
@@ -262,7 +255,9 @@ class PrecedentMatcher:
         requests_text = (
             requests
             if isinstance(requests, str)
-            else " ".join(requests) if requests else ""
+            else " ".join(requests)
+            if requests
+            else ""
         )
         if requests_text and requests_text.strip():
             self._search_field(requests_text, unique_results)
@@ -331,9 +326,7 @@ class PrecedentMatcher:
 
         facts_preview = facts[:200] + "..." if len(facts) > 200 else facts
         requests_preview = (
-            requests_text[:200] + "..."
-            if len(requests_text) > 200
-            else requests_text
+            requests_text[:200] + "..." if len(requests_text) > 200 else requests_text
         )
 
         return {
@@ -356,7 +349,6 @@ class PrecedentMatcher:
                     "url": r["payload"].get("url"),
                     "last_update": r["payload"].get("last_update"),
                     "score": round(r.get("vector_score", 0), 4),
-                    "vector_score": round(r.get("vector_score", 0), 4),
                     "score_species": r.get("score_species"),
                     "applicability": r.get("applicability"),
                     "applicability_justification": r.get("applicability_justification"),
