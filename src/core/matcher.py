@@ -29,18 +29,24 @@ SPECIES_WEIGHTS: Dict[str, float] = {
     "Enunciado": 1.00,
 }
 
+_QUERY_INSTRUCTION = (
+    "Instruct: Recupere precedentes jurídicos brasileiros relevantes "
+    "para os seguintes fatos processuais\nQuery: "
+)
+
 
 class PrecedentMatcher:
     def __init__(
         self,
         qdrant_client,
         collection_name: str,
-        model_name: str = "all-MiniLM-L6-v2",
+        model_name: str = "intfloat/multilingual-e5-large-instruct",
+        reranker_name: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
     ):
         self.qdrant_client = qdrant_client
         self.collection_name = collection_name
         self.encoder = SentenceTransformer(model_name)
-        self.reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+        self.reranker = CrossEncoder(reranker_name)
 
         self.top_k = int(os.getenv("TOP_K", 50))
         self.final_k = int(os.getenv("FINAL_K", 20))
@@ -69,6 +75,12 @@ class PrecedentMatcher:
         if current_chunk:
             chunks.append(" ".join(current_chunk))
         return chunks
+
+    def _encode_query(self, text: str) -> List[float]:
+        return self.encoder.encode(_QUERY_INSTRUCTION + text).tolist()
+
+    def _encode_document(self, text: str) -> List[float]:
+        return self.encoder.encode(text).tolist()
 
     def vector_search(self, query_vector: List[float]) -> List[Dict]:
         if not self.qdrant_client:
@@ -102,7 +114,7 @@ class PrecedentMatcher:
 
     def _search_field(self, text: str, unique_results: Dict[int, Dict]) -> None:
         for chunk in self.chunk_text(text):
-            query_vector = self.encoder.encode(chunk).tolist()
+            query_vector = self._encode_query(chunk)
             for result in self.vector_search(query_vector):
                 rid = result["id"]
                 if (
