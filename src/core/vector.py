@@ -9,6 +9,7 @@ def vectorize(model, key, value):
     payload = {
         "name": value.get("name"),
         "description": value.get("description"),
+        "question": value.get("question"),
         "tribunal": value.get("tribunal"),
         "species": value.get("species"),
         "situation": value.get("situation"),
@@ -33,7 +34,6 @@ def vectorize_entries(redis_client, qdrant_client, qdrant_collection_name, model
     if not qdrant_collection_name:
         raise ValueError("qdrant_collection_name nao pode ser vazio")
 
-    points = []
     all_keys = set()
 
     for pattern in ("precedent:*", "precedente:*"):
@@ -41,12 +41,15 @@ def vectorize_entries(redis_client, qdrant_client, qdrant_collection_name, model
         while True:
             cursor, keys = redis_client.scan(cursor=cursor, match=pattern)
             all_keys.update(keys)
-
             if cursor == 0:
                 break
 
     skipped_wrong_type = 0
     skipped_invalid_key = 0
+    total_upserted = 0
+    BATCH_SIZE = 100
+
+    batch = []
 
     for key in all_keys:
         key_type = redis_client.type(key)
@@ -62,7 +65,7 @@ def vectorize_entries(redis_client, qdrant_client, qdrant_collection_name, model
             skipped_invalid_key += 1
             continue
 
-        points.append(
+        batch.append(
             PointStruct(
                 id=point_id,
                 vector=vector,
@@ -70,7 +73,23 @@ def vectorize_entries(redis_client, qdrant_client, qdrant_collection_name, model
             )
         )
 
-    if not points:
+        if len(batch) >= BATCH_SIZE:
+            qdrant_client.upsert(
+                collection_name=qdrant_collection_name,
+                points=batch,
+            )
+            total_upserted += len(batch)
+            print(f"Upserted {total_upserted} points so far...")
+            batch = []
+
+    if batch:
+        qdrant_client.upsert(
+            collection_name=qdrant_collection_name,
+            points=batch,
+        )
+        total_upserted += len(batch)
+
+    if not total_upserted:
         print("No precedents found in Redis; skipping Qdrant upsert")
         return
 
@@ -80,9 +99,4 @@ def vectorize_entries(redis_client, qdrant_client, qdrant_collection_name, model
     if skipped_invalid_key:
         print(f"Skipped {skipped_invalid_key} keys with invalid id format")
 
-    qdrant_client.upsert(
-        collection_name=qdrant_collection_name,
-        points=points,
-    )
-
-    print("Successfully saved all data into Qdrant")
+    print(f"Successfully saved {total_upserted} points into Qdrant")
