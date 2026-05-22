@@ -17,6 +17,11 @@ spec:
         image: docker.io/gabguimaraes/precedentia-embedding:1f684a0
         ports:
         - containerPort: 5001
+        env:
+          - name: QDRANT_URL
+            value: "http://qdrant-service:6333"
+          - name: REDIS_HOST
+            value: "redis-service"
         resources:
           requests:
             memory: "1Gi"
