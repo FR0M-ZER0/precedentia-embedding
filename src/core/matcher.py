@@ -195,8 +195,9 @@ class PrecedentMatcher:
         pairs = [
             [
                 rerank_query,
-                f"{r['payload'].get('name', '')}. {r['payload'].
-                                                   get('description', '')}",
+                f"{r['payload'].get('name', '')}. {
+                    r['payload'].get('description', '')
+                }",
             ]
             for r in results
         ]
