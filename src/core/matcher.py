@@ -58,10 +58,14 @@ class PrecedentMatcher:
         self.score_threshold = float(os.getenv("SCORE_THRESHOLD", 0.1))
 
         self.rerank_facts_limit = int(os.getenv("RERANK_FACTS_LIMIT", 800))
-        self.rerank_requests_limit = int(os.getenv("RERANK_REQUESTS_LIMIT", 400))
+        self.rerank_requests_limit = int(
+            os.getenv("RERANK_REQUESTS_LIMIT", 400)
+        )
 
         self.applicability_url = os.getenv("APPLICABILITY_SERVICE_URL")
-        self.applicability_timeout = int(os.getenv("APPLICABILITY_TIMEOUT", 30))
+        self.applicability_timeout = int(
+            os.getenv("APPLICABILITY_TIMEOUT", 30)
+        )
 
     def chunk_text(self, text: str) -> List[str]:
         if not text or not text.strip():
@@ -97,7 +101,9 @@ class PrecedentMatcher:
 
     def vector_search(self, query_vector: List[float]) -> List[Dict]:
         if not self.qdrant_client:
-            logger.error("Erro na busca vetorial: cliente Qdrant não inicializado")
+            logger.error(
+                "Erro na busca vetorial: cliente Qdrant não inicializado"
+            )
             return []
         try:
             if hasattr(self.qdrant_client, "search"):
@@ -116,17 +122,22 @@ class PrecedentMatcher:
                 )
                 results = getattr(query_response, "points", query_response)
             else:
-                logger.error("Erro na busca vetorial: método Qdrant incompatível")
+                logger.error(
+                    "Erro na busca vetorial: método Qdrant incompatível"
+                )
                 return []
 
             return [
-                {"id": r.id, "score": r.score, "payload": r.payload} for r in results
+                {"id": r.id, "score": r.score, "payload": r.payload}
+                for r in results
             ]
         except Exception as e:
             logger.error(f"Erro na busca vetorial: {e}")
             return []
 
-    def _search_field(self, text: str, unique_results: Dict[int, Dict]) -> None:
+    def _search_field(
+        self, text: str, unique_results: Dict[int, Dict]
+    ) -> None:
         for chunk in self.chunk_text(text):
             query_vector = self._encode_query(chunk)
             for result in self.vector_search(query_vector):
@@ -152,7 +163,9 @@ class PrecedentMatcher:
         e melhora a capacidade do reranker de distinguir precedentes
         aplicáveis dos irrelevantes.
         """
-        requests_text = requests if isinstance(requests, str) else " ".join(requests)
+        requests_text = (
+            requests if isinstance(requests, str) else " ".join(requests)
+        )
 
         facts_excerpt = facts[: self.rerank_facts_limit].strip()
         requests_excerpt = requests_text[: self.rerank_requests_limit].strip()
@@ -282,7 +295,9 @@ class PrecedentMatcher:
         for r in all_results:
             r["score"] = self.compute_score(r)
 
-        all_results = [r for r in all_results if r["score"] >= self.score_threshold]
+        all_results = [
+            r for r in all_results if r["score"] >= self.score_threshold
+        ]
 
         if all_results and facts:
             precedents_payload = [
@@ -303,7 +318,9 @@ class PrecedentMatcher:
                 r["applicability"] = enriched_r.get(
                     "applicability", "possible_applicability"
                 )
-                r["applicability_score"] = enriched_r.get("applicability_score", 0.5)
+                r["applicability_score"] = enriched_r.get(
+                    "applicability_score", 0.5
+                )
                 r["applicability_justification"] = enriched_r.get(
                     "applicability_justification"
                 )
@@ -326,7 +343,9 @@ class PrecedentMatcher:
 
         facts_preview = facts[:200] + "..." if len(facts) > 200 else facts
         requests_preview = (
-            requests_text[:200] + "..." if len(requests_text) > 200 else requests_text
+            requests_text[:200] + "..."
+            if len(requests_text) > 200
+            else requests_text
         )
 
         return {
@@ -351,7 +370,9 @@ class PrecedentMatcher:
                     "score": round(r.get("vector_score", 0), 4),
                     "score_species": r.get("score_species"),
                     "applicability": r.get("applicability"),
-                    "applicability_justification": r.get("applicability_justification"),
+                    "applicability_justification": r.get(
+                        "applicability_justification"
+                    ),
                 }
                 for r in all_results
             ],

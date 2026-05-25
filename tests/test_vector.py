@@ -49,10 +49,14 @@ class TestVectorize:
 
     def test_encodes_name_and_description(self, mock_model, sample_value):
         vectorize(mock_model, "precedent:42", sample_value)
-        expected_text = f"{sample_value['name']}. {sample_value['description']}"
+        expected_text = (
+            f"{sample_value['name']}. {sample_value['description']}"
+        )
         mock_model.encode.assert_called_once_with(expected_text)
 
-    def test_payload_contains_all_expected_fields(self, mock_model, sample_value):
+    def test_payload_contains_all_expected_fields(
+        self, mock_model, sample_value
+    ):
         _, _, payload = vectorize(mock_model, "precedent:42", sample_value)
         assert payload["name"] == sample_value["name"]
         assert payload["description"] == sample_value["description"]
@@ -166,7 +170,9 @@ class TestVectorizeEntries:
         _, kwargs = mock_qdrant.upsert.call_args
         assert len(kwargs["points"]) == 3
 
-    def test_empty_redis_upserts_empty_list(self, mock_redis, mock_qdrant, mock_model):
+    def test_empty_redis_upserts_empty_list(
+        self, mock_redis, mock_qdrant, mock_model
+    ):
         mock_redis.scan.return_value = (0, [])
 
         vectorize_entries(mock_redis, mock_qdrant, "precedents", mock_model)
