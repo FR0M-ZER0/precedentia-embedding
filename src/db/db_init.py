@@ -29,7 +29,9 @@ def init_qdrant():
 
             client.create_collection(
                 collection_name=COLLECTION_NAME,
-                vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+                vectors_config=VectorParams(
+                    size=VECTOR_SIZE, distance=Distance.COSINE
+                ),
             )
 
             print("Collection created!")
@@ -45,7 +47,9 @@ def init_qdrant():
 
 def init_redis():
     try:
-        r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+        r = redis.Redis(
+            host=REDIS_HOST, port=REDIS_PORT, decode_responses=True
+        )
         r.ping()
 
         print("Sucessfully connected to Redis")

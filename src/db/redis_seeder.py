@@ -110,7 +110,9 @@ _URL_BASES = {
     "STM": "https://www.stm.jus.br/jurisprudencia/tema/{}",
 }
 for _n in range(1, 6):
-    _URL_BASES[f"TRF{_n}"] = f"https://www.trf{_n}.jus.br/jurisprudencia/tema/{{}}"
+    _URL_BASES[f"TRF{_n}"] = (
+        f"https://www.trf{_n}.jus.br/jurisprudencia/tema/{{}}"
+    )
 for _uf in [
     "AC",
     "AL",
@@ -144,7 +146,9 @@ for _uf in [
         f"https://www.tj{_uf.lower()}.jus.br/jurisprudencia/tema/{{}}"
     )
 for _n in range(1, 25):
-    _URL_BASES[f"TRT{_n}"] = f"https://www.trt{_n}.jus.br/jurisprudencia/tema/{{}}"
+    _URL_BASES[f"TRT{_n}"] = (
+        f"https://www.trt{_n}.jus.br/jurisprudencia/tema/{{}}"
+    )
 for _uf in [
     "AC",
     "AL",
@@ -305,9 +309,18 @@ for _uf in [
         "Acórdão em Recurso",
     ]
 # TJMs
-ESPECIES_POR_TRIBUNAL["TJMMG"] = ["Acórdão em Recurso Ordinário Militar", "Súmula"]
-ESPECIES_POR_TRIBUNAL["TJMRS"] = ["Acórdão em Recurso Ordinário Militar", "Súmula"]
-ESPECIES_POR_TRIBUNAL["TJMSP"] = ["Acórdão em Recurso Ordinário Militar", "Súmula"]
+ESPECIES_POR_TRIBUNAL["TJMMG"] = [
+    "Acórdão em Recurso Ordinário Militar",
+    "Súmula",
+]
+ESPECIES_POR_TRIBUNAL["TJMRS"] = [
+    "Acórdão em Recurso Ordinário Militar",
+    "Súmula",
+]
+ESPECIES_POR_TRIBUNAL["TJMSP"] = [
+    "Acórdão em Recurso Ordinário Militar",
+    "Súmula",
+]
 
 # Fallback para tribunais não mapeados
 _ESPECIES_FALLBACK = [
@@ -574,7 +587,9 @@ def random_precedent(entry_id: int, used_theme_numbers: set) -> dict:
         "tribunal": tribunal,
         "species": get_especie(tribunal),
         "last_update": random_past_date(),
-        "situation": random.choices(SITUATIONS, weights=SITUATION_WEIGHTS, k=1)[0],
+        "situation": random.choices(
+            SITUATIONS, weights=SITUATION_WEIGHTS, k=1
+        )[0],
         "url": get_url(tribunal, theme_number),
         "description": DESCRIPTIONS[pair_index],
         "summary": AI_SUMMARIES[pair_index],
