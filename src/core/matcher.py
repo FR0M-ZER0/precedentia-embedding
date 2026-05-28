@@ -54,7 +54,7 @@ class PrecedentMatcher:
         self.reranker = CrossEncoder(reranker_name)
 
         self.chunk_size = int(os.getenv("CHUNK_SIZE", 512))
-        self.top_k = int(os.getenv("TOP_K", 50))
+        self.top_k = int(os.getenv("TOP_K", 100))
         self.final_k = int(os.getenv("FINAL_K", 20))
         self.score_threshold = float(os.getenv("SCORE_THRESHOLD", 0.1))
 
@@ -137,16 +137,20 @@ class PrecedentMatcher:
             return []
 
     def _search_field(
-        self, text: str, unique_results: Dict[int, Dict]
+            self, text: str, unique_results: Dict[int, Dict]
     ) -> None:
+        full_query = text[:1000]
+        query_vector = self._encode_query(full_query)
+        for result in self.vector_search(query_vector):
+            rid = result["id"]
+            if rid not in unique_results or result["score"] > unique_results[rid]["score"]:
+                unique_results[rid] = result
+
         for chunk in self.chunk_text(text):
             query_vector = self._encode_query(chunk)
             for result in self.vector_search(query_vector):
                 rid = result["id"]
-                if (
-                    rid not in unique_results
-                    or result["score"] > unique_results[rid]["score"]
-                ):
+                if rid not in unique_results or result["score"] > unique_results[rid]["score"]:
                     unique_results[rid] = result
 
     def _build_rerank_query(
