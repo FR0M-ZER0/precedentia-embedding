@@ -309,15 +309,15 @@ class PrecedentMatcher:
         if facts and facts.strip():
             self._search_field(facts, unique_results)
 
-        requests_text = (
-            requests
-            if isinstance(requests, str)
-            else " ".join(requests)
-            if requests
-            else ""
-        )
-        if requests_text and requests_text.strip():
-            self._search_field(requests_text, unique_results)
+        # requests_text = (
+        #     requests
+        #     if isinstance(requests, str)
+        #     else " ".join(requests)
+        #     if requests
+        #     else ""
+        # )
+        # if requests_text and requests_text.strip():
+        #     self._search_field(requests_text, unique_results)
 
         all_results = sorted(
             unique_results.values(),
