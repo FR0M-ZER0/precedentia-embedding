@@ -532,4 +532,12 @@ class PrecedentMatcher:
                 )
                 delivered += 1
 
-        emit("done", {"total_found": delivered})
+        emit("done", {
+            "total_found": delivered,
+            "query": {
+                "type": petition_type,
+                "tribunal": tribunal,
+                "facts": facts[:200],
+                "requests": requests[:200] if isinstance(requests, str) else "",
+            }
+        })
