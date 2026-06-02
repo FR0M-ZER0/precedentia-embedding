@@ -14,9 +14,20 @@ spec:
     spec:
       containers:
       - name: embedding
-        image: docker.io/gabguimaraes/precedentia-embedding:842bab6
+        image: docker.io/gabguimaraes/precedentia-embedding:latest
         ports:
         - containerPort: 5001
+        env:
+        - name: QDRANT_HOST
+          value: "qdrant-db"
+        - name: QDRANT_PORT
+          value: "6333"
+        - name: REDIS_HOST
+          value: "redis-db-master"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: QDRANT_VECTOR_SIZE
+          value: "1536" 
         resources:
           requests:
             memory: "1Gi"
@@ -24,4 +35,3 @@ spec:
           limits:
             memory: "4Gi"
             cpu: "2000m"
-
